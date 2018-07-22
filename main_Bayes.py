@@ -6,7 +6,7 @@ import torchvision.transforms as transforms
 import torch.utils.data as data
 import torchvision.datasets as dsets
 import os
-from utils.BBBConvmodel import BBBELUN1, BBBELUN2, BBBLeNet, BBB3Conv3FC
+from utils.BBBConvmodel import BBB3Conv3FC, BBBLeNet, BBBELUN1, BBBELUN2
 from utils.BBBlayers import GaussianVariationalInference
 
 cuda = torch.cuda.is_available()
@@ -15,8 +15,8 @@ cuda = torch.cuda.is_available()
 HYPERPARAMETERS
 '''
 is_training = True  # set to "False" to only run validation
-num_samples = 10  # because of Casper's trick
-batch_size = 8
+num_samples = 1  # because of Casper's trick
+batch_size = 1
 beta_type = "Blundell"
 net = BBBELUN2
 dataset = 'CIFAR-100'  # MNIST, CIFAR-10, CIFAR-100 or ImageNet
@@ -27,7 +27,7 @@ lr = 0.00001
 weight_decay = 0.0005
 
 # dimensions of input and output
-if dataset is 'MNIST' or 'FashionMNIST' or 'EMINST':    # train with MNIST version
+if dataset is 'MNIST':    # train with MNIST version
     outputs = 10
     inputs = 1
 elif dataset is 'CIFAR-10':  # train with CIFAR-10
@@ -39,11 +39,19 @@ elif dataset is 'CIFAR-100':    # train with CIFAR-100
 elif dataset is 'ImageNet':    # train with ImageNet
     outputs = 1000
     inputs = 3
+else:
+    pass
 
-if net is BBBLeNet or BBB3Conv3FC:
+if net is BBBLeNet:
     resize = 32
-elif net is BBBELUN1 or BBBELUN2:
+elif net is BBB3Conv3FC:
+    resize = 32
+elif net is BBBELUN1:
+    resize = 32
+elif net is BBBELUN2:
     resize = 224
+else:
+    pass
 
 '''
 LOADING DATASET
@@ -54,12 +62,6 @@ if dataset is 'MNIST':
                                     transforms.Normalize((0.1307,), (0.3081,))])
     train_dataset = dsets.MNIST(root="data", download=True, transform=transform)
     val_dataset = dsets.MNIST(root="data", download=True, train=False, transform=transform)
-
-elif dataset is 'FashionMNIST':
-    transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
-                                    transforms.Normalize((0.1307,), (0.3081,))])
-    train_dataset = dsets.FashionMNIST(root="data", download=True, transform=transform)
-    val_dataset = dsets.FashionMNIST(root="data", download=True, train=False, transform=transform)
 
 elif dataset is 'CIFAR-100':
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
@@ -72,6 +74,12 @@ elif dataset is 'CIFAR-10':
                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
     train_dataset = dsets.CIFAR10(root="data", download=True, transform=transform)
     val_dataset = dsets.CIFAR10(root='data', download=True, train=False, transform=transform)
+
+elif dataset is 'ImageNet':
+    transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
+                                    transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    train_dataset = dsets.ImageFolder(root="data", transform=transform)
+    val_dataset = dsets.ImageFolder(root='data', transform=transform)
 
 '''
 MAKING DATASET ITERABLE

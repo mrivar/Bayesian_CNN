@@ -1,13 +1,11 @@
-import math
 import torch
-import pickle
-import torch.cuda
+import os
+import torchvision.datasets as dsets
 import torchvision.transforms as transforms
 import torch.utils.data as data
-import torchvision.datasets as dsets
-import os
-from utils.BBBConvmodels import BBB3Conv3FC, BBBLeNet, BBBELUN1, BBBELUN2
-from utils.BBBlayers import GaussianVariationalInference
+import torch.nn as nn
+import pickle
+from MAPConvmodels import LeNet, _3Conv3FC, ELUN1
 
 cuda = torch.cuda.is_available()
 
@@ -17,12 +15,9 @@ HYPERPARAMETERS
 is_training = True  # set to "False" to only run validation
 num_samples = 1  # because of Casper's trick
 batch_size = 1
-beta_type = "None"
-net = BBBELUN1
-dataset = 'CIFAR-100'  # MNIST, CIFAR-10, CIFAR-100 or ImageNet
+net = LeNet
+dataset = 'MNIST'  # MNIST, CIFAR-10 or CIFAR-100
 num_epochs = 100
-p_logvar_init = 0
-q_logvar_init = -10
 lr = 0.00001
 weight_decay = 0.0005
 
@@ -42,21 +37,11 @@ elif dataset is 'ImageNet':    # train with ImageNet
 else:
     pass
 
-if net is BBBLeNet:
-    resize = 32
-elif net is LeNet:
-    resize = 32
-elif net is BBB3Conv3FC:
+if net is LeNet:
     resize = 32
 elif net is _3Conv3FC:
     resize = 32
-elif net is BBBELUN1:
-    resize = 32
 elif net is ELUN1:
-    resize = 32
-elif net is BBBELUN2:
-    resize = 224
-elif net is ELUN2:
     resize = 32
 else:
     pass
@@ -112,37 +97,17 @@ model = net(outputs=outputs, inputs=inputs)
 if cuda:
     model.cuda()
 
-'''
-INSTANTIATE VARIATIONAL INFERENCE AND OPTIMISER
-'''
-vi = GaussianVariationalInference(torch.nn.CrossEntropyLoss())
+# Loss and optimizer
+criterion = nn.CrossEntropyLoss()
 optimiser = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr, weight_decay=weight_decay)
-
-'''
-check parameter matrix shapes
-'''
-
-# how many parameter matrices do we have?
-print('Number of parameter matrices: ', len(list(model.parameters())))
-
-for i in range(len(list(model.parameters()))):
-    print(list(model.parameters())[i].size())
-
-'''
-TRAIN MODEL
-'''
 
 logfile = os.path.join('diagnostics_1.txt')
 with open(logfile, 'w') as lf:
     lf.write('')
 
 
-def run_epoch(loader, epoch, is_training=False):
-    m = math.ceil(len(loader.dataset) / loader.batch_size)
-
+def run_epoch(loader, is_training=False):
     accuracies = []
-    likelihoods = []
-    kls = []
     losses = []
 
     for i, (images, labels) in enumerate(loader):
@@ -154,36 +119,23 @@ def run_epoch(loader, epoch, is_training=False):
             x = x.cuda()
             y = y.cuda()
 
-        if beta_type is "Blundell":
-            beta = 2 ** (m - (i + 1)) / (2 ** m - 1)
-        elif beta_type is "Soenderby":
-            beta = min(epoch / (num_epochs//4), 1)
-        elif beta_type is "Standard":
-            beta = 1 / m
-        else:
-            beta = 0
-
-        logits, kl = model.probforward(x)
-        loss = vi(logits, y, kl, beta)
-        ll = -loss.data.mean() + beta*kl.data.mean()
+        # Forward pass
+        outputs = model(x)
+        loss = criterion(outputs, y)
 
         if is_training:
             optimiser.zero_grad()
             loss.backward()
             optimiser.step()
 
-        _, predicted = logits.max(1)
+        _, predicted = torch.max(y.data, 1)
         accuracy = (predicted.data.cpu() == y.cpu()).float().mean()
 
         accuracies.append(accuracy)
         losses.append(loss.data.mean())
-        kls.append(beta*kl.data.mean())
-        likelihoods.append(ll)
 
-    diagnostics = {'loss': sum(losses)/len(losses),
-                   'acc': sum(accuracies)/len(accuracies),
-                   'kl': sum(kls)/len(kls),
-                   'likelihood': sum(likelihoods)/len(likelihoods)}
+    diagnostics = {'loss': sum(losses) / len(losses),
+                   'acc': sum(accuracies) / len(accuracies)}
 
     return diagnostics
 

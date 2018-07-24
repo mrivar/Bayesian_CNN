@@ -13,10 +13,8 @@ cuda = torch.cuda.is_available()
 HYPERPARAMETERS
 '''
 is_training = True  # set to "False" to only run validation
-num_samples = 1  # because of Casper's trick
-batch_size = 1
-net = LeNet
-dataset = 'MNIST'  # MNIST, CIFAR-10 or CIFAR-100
+net = ELUN1
+dataset = 'CIFAR-100'  # MNIST, CIFAR-10 or CIFAR-100
 num_epochs = 100
 lr = 0.00001
 weight_decay = 0.0005
@@ -106,14 +104,14 @@ with open(logfile, 'w') as lf:
     lf.write('')
 
 
-def run_epoch(loader, is_training=False):
+def run_epoch(loader):
     accuracies = []
     losses = []
 
     for i, (images, labels) in enumerate(loader):
         # Repeat samples (Casper's trick)
-        x = images.view(-1, inputs, resize, resize).repeat(num_samples, 1, 1, 1)
-        y = labels.repeat(num_samples)
+        x = images.view(-1, inputs, resize, resize)
+        y = labels.repeat
 
         if cuda:
             x = x.cuda()
@@ -142,8 +140,8 @@ def run_epoch(loader, is_training=False):
 
 for epoch in range(num_epochs):
     if is_training is True:
-        diagnostics_train = run_epoch(loader_train, epoch, is_training=True)
-        diagnostics_val = run_epoch(loader_val, epoch)
+        diagnostics_train = run_epoch(loader_train)
+        diagnostics_val = run_epoch(loader_val)
         diagnostics_train = dict({"type": "train", "epoch": epoch}, **diagnostics_train)
         diagnostics_val = dict({"type": "validation", "epoch": epoch}, **diagnostics_val)
         print(diagnostics_train)
@@ -153,7 +151,7 @@ for epoch in range(num_epochs):
             lf.write(str(diagnostics_train))
             lf.write(str(diagnostics_val))
     else:
-        diagnostics_val = run_epoch(loader_val, epoch)
+        diagnostics_val = run_epoch(loader_val)
         diagnostics_val = dict({"type": "validation", "epoch": epoch}, **diagnostics_val)
         print(diagnostics_val)
 

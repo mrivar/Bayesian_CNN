@@ -11,7 +11,7 @@ plt.rcParams.update({'xtick.labelsize': 32, 'ytick.labelsize': 32, 'axes.labelsi
 # change for given number of tasks
 os.chdir("/home/felix/Dropbox/publications/Bayesian_CNN_MCVI/results/")
 
-with open("diagnostics_1.txt", 'r') as file:
+with open("diagnostics_MNIST.txt", 'r') as file:
     acc = re.findall(r"'acc':\s+tensor\((.*?)\)", file.read())
 print(acc)
 
@@ -21,7 +21,7 @@ valid_1 = acc[1::2]
 train_1 = np.array(train_1).astype(np.float32)
 valid_1 = np.array(valid_1).astype(np.float32)
 
-with open("diagnostics_2.txt", 'r') as file:
+with open("diagnostics_CIFAR-10.txt", 'r') as file:
     acc = re.findall(r"'acc':\s+tensor\((.*?)\)", file.read())
 print(acc)
 
@@ -31,15 +31,39 @@ valid_2 = acc[1::2]
 train_2 = np.array(train_2).astype(np.float32)
 valid_2 = np.array(valid_2).astype(np.float32)
 
+with open("diagnostics_BBBMNIST.txt", 'r') as file:
+    acc = re.findall(r"'acc':\s+tensor\((.*?)\)", file.read())
+print(acc)
+
+train_3 = acc[0::2]
+valid_3 = acc[1::2]
+
+train_3 = np.array(train_3).astype(np.float32)
+valid_3 = np.array(valid_3).astype(np.float32)
+
+with open("diagnostics_BBBCIFAR-10.txt", 'r') as file:
+    acc = re.findall(r"'acc':\s+tensor\((.*?)\)", file.read())
+print(acc)
+
+train_4 = acc[0::2]
+valid_4 = acc[1::2]
+
+train_4 = np.array(train_4).astype(np.float32)
+valid_4 = np.array(valid_4).astype(np.float32)
+
 
 f = plt.figure(figsize=(20, 16))
 
 
 print(valid_1)
 print(valid_2)
+print(valid_3)
+print(valid_4)
 
-plt.plot(valid_1, label=r"Validation CIFAR-10, prior: $U(a, b)$", color='maroon')
-plt.plot(valid_2, label=r"Validation MNIST, prior: $U(a, b)$", color='darkblue')
+plt.plot(valid_1, label=r"Validation MNIST, MAP", color='maroon--')
+plt.plot(valid_2, label=r"Validation CIFAR-10, MAP", color='darkblue--')
+plt.plot(valid_3, label=r"Validation MNIST, prior: $U(a, b)$", color='maroon')
+plt.plot(valid_4, label=r"Validation CIFAR-10, prior: $U(a, b)$", color='darkblue')
 
 
 plt.xlabel("Epochs")

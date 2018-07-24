@@ -5,7 +5,7 @@ import torchvision.transforms as transforms
 import torch.utils.data as data
 import torch.nn as nn
 import pickle
-from MAPConvmodels import LeNet, _3Conv3FC, ELUN1
+from MAPConvmodels import LeNet, _3Conv3FC, ELUN1, CNN1
 
 cuda = torch.cuda.is_available()
 
@@ -13,7 +13,8 @@ cuda = torch.cuda.is_available()
 HYPERPARAMETERS
 '''
 is_training = True  # set to "False" to only run validation
-net = ELUN1
+net = CNN1
+batch_size = 64
 dataset = 'CIFAR-100'  # MNIST, CIFAR-10 or CIFAR-100
 num_epochs = 100
 lr = 0.00001
@@ -40,6 +41,8 @@ if net is LeNet:
 elif net is _3Conv3FC:
     resize = 32
 elif net is ELUN1:
+    resize = 32
+elif net is CNN1:
     resize = 32
 else:
     pass
@@ -111,7 +114,7 @@ def run_epoch(loader):
     for i, (images, labels) in enumerate(loader):
         # Repeat samples (Casper's trick)
         x = images.view(-1, inputs, resize, resize)
-        y = labels.repeat
+        y = labels
 
         if cuda:
             x = x.cuda()
@@ -126,7 +129,7 @@ def run_epoch(loader):
             loss.backward()
             optimiser.step()
 
-        _, predicted = torch.max(y.data, 1)
+        _, predicted = outputs.max(1)
         accuracy = (predicted.data.cpu() == y.cpu()).float().mean()
 
         accuracies.append(accuracy)

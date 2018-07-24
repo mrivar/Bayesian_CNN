@@ -9,7 +9,7 @@ plt.rc('font', family='serif', size=32)
 plt.rcParams.update({'xtick.labelsize': 32, 'ytick.labelsize': 32, 'axes.labelsize': 32})
 
 # change for given number of tasks
-os.chdir("/home/felix/Dropbox/publications/Bayesian_CNN_MCVI/results/")
+os.chdir("/home/felix/Dropbox/Research/publications/Bayesian_CNN/results/")
 
 with open("diagnostics_MNIST.txt", 'r') as file:
     acc = re.findall(r"'acc':\s+tensor\((.*?)\)", file.read())
@@ -60,8 +60,8 @@ print(valid_2)
 print(valid_3)
 print(valid_4)
 
-plt.plot(valid_1, label=r"Validation MNIST, MAP", color='maroon--')
-plt.plot(valid_2, label=r"Validation CIFAR-10, MAP", color='darkblue--')
+plt.plot(valid_1, label=r"Validation MNIST, $MAP$", color='maroon', linestyle='--')
+plt.plot(valid_2, label=r"Validation CIFAR-10, $MAP$", color='darkblue', linestyle='--')
 plt.plot(valid_3, label=r"Validation MNIST, prior: $U(a, b)$", color='maroon')
 plt.plot(valid_4, label=r"Validation CIFAR-10, prior: $U(a, b)$", color='darkblue')
 

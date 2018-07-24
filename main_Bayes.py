@@ -6,7 +6,7 @@ import torchvision.transforms as transforms
 import torch.utils.data as data
 import torchvision.datasets as dsets
 import os
-from utils.BBBConvmodels import BBB3Conv3FC, BBBLeNet, BBBELUN1, BBBELUN2
+from utils.BBBConvmodels import BBB3Conv3FC, BBBLeNet, BBBELUN1, BBBELUN2, BBBCNN1
 from utils.BBBlayers import GaussianVariationalInference
 
 cuda = torch.cuda.is_available()
@@ -18,7 +18,7 @@ is_training = True  # set to "False" to only run validation
 num_samples = 1  # because of Casper's trick
 batch_size = 1
 beta_type = "None"
-net = BBBELUN1
+net = BBBCNN1
 dataset = 'CIFAR-100'  # MNIST, CIFAR-10, CIFAR-100 or ImageNet
 num_epochs = 100
 p_logvar_init = 0
@@ -44,20 +44,14 @@ else:
 
 if net is BBBLeNet:
     resize = 32
-elif net is LeNet:
-    resize = 32
 elif net is BBB3Conv3FC:
-    resize = 32
-elif net is _3Conv3FC:
     resize = 32
 elif net is BBBELUN1:
     resize = 32
-elif net is ELUN1:
+elif net is BBBCNN1:
     resize = 32
 elif net is BBBELUN2:
     resize = 224
-elif net is ELUN2:
-    resize = 32
 else:
     pass
 

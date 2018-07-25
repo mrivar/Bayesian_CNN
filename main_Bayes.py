@@ -103,6 +103,8 @@ model = net(outputs=outputs, inputs=inputs)
 if cuda:
     model.cuda()
 
+model = torch.nn.DataParallel(model)
+
 '''
 INSTANTIATE VARIATIONAL INFERENCE AND OPTIMISER
 '''

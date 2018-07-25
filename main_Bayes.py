@@ -15,11 +15,11 @@ cuda = torch.cuda.is_available()
 HYPERPARAMETERS
 '''
 is_training = True  # set to "False" to only run validation
-num_samples = 1  # because of Casper's trick
-batch_size = 1
-beta_type = "None"
-net = BBBCNN1
-dataset = 'CIFAR-100'  # MNIST, CIFAR-10, CIFAR-100
+num_samples = 10  # because of Casper's trick
+batch_size = 16
+beta_type = "Blundell"
+net = BBB3Conv3FC
+dataset = 'Monkeys'  # MNIST, CIFAR-10, CIFAR-100 or Monkey species
 num_epochs = 100
 p_logvar_init = 0
 q_logvar_init = -10
@@ -35,6 +35,9 @@ elif dataset is 'CIFAR-10':  # train with CIFAR-10
     inputs = 3
 elif dataset is 'CIFAR-100':    # train with CIFAR-100
     outputs = 100
+    inputs = 3
+elif dataset is 'Monkeys':    # train with Monkey species
+    outputs = 10
     inputs = 3
 else:
     pass
@@ -74,11 +77,11 @@ elif dataset is 'CIFAR-10':
     train_dataset = dsets.CIFAR10(root="data", download=True, transform=transform)
     val_dataset = dsets.CIFAR10(root='data', download=True, train=False, transform=transform)
 
-elif dataset is 'ImageNet':
+elif dataset is 'Monkeys':
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-    train_dataset = dsets.ImageFolder(root="data", transform=transform)
-    val_dataset = dsets.ImageFolder(root='data', transform=transform)
+    train_dataset = dsets.ImageFolder(root="data/10-monkey-species/training", transform=transform)
+    val_dataset = dsets.ImageFolder(root="data/10-monkey-species/validation", transform=transform)
 
 '''
 MAKING DATASET ITERABLE

@@ -14,8 +14,8 @@ HYPERPARAMETERS
 '''
 is_training = True  # set to "False" to only run validation
 net = _3Conv3FC
-batch_size = 2
-dataset = 'Monkeys'  # MNIST, CIFAR-10, CIFAR-100
+batch_size = 32
+dataset = 'Monkeys'  # MNIST, CIFAR-10, CIFAR-100 or Monkey species
 num_epochs = 100
 lr = 0.00001
 weight_decay = 0.0005
@@ -30,7 +30,7 @@ elif dataset is 'CIFAR-10':  # train with CIFAR-10
 elif dataset is 'CIFAR-100':    # train with CIFAR-100
     outputs = 100
     inputs = 3
-elif dataset is 'Monkeys':    # train with CIFAR-100
+elif dataset is 'Monkeys':    # train with Monkey species
     outputs = 10
     inputs = 3
 else:
@@ -94,10 +94,10 @@ INSTANTIATE MODEL
 '''
 
 model = net(outputs=outputs, inputs=inputs)
-
+"""
 if cuda:
     model.cuda()
-
+"""
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
 optimiser = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr, weight_decay=weight_decay)
@@ -115,11 +115,11 @@ def run_epoch(loader):
         # Repeat samples (Casper's trick)
         x = images.view(-1, inputs, resize, resize)
         y = labels
-
+        """
         if cuda:
             x = x.cuda()
             y = y.cuda()
-
+        """
         # Forward pass
         outputs = model(x)
         loss = criterion(outputs, y)

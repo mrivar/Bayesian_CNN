@@ -60,8 +60,8 @@ print(valid_2)
 print(valid_3)
 print(valid_4)
 
-plt.plot(valid_1, label=r"Validation MNIST, $MAP$", color='maroon', linestyle='--')
-plt.plot(valid_2, label=r"Validation CIFAR-10, $MAP$", color='darkblue', linestyle='--')
+plt.plot(valid_1, label=r"Validation MNIST, $MLE$", color='maroon', linestyle='--')
+plt.plot(valid_2, label=r"Validation CIFAR-10, $MLE$", color='darkblue', linestyle='--')
 plt.plot(valid_3, label=r"Validation MNIST, prior: $U(a, b)$", color='maroon')
 plt.plot(valid_4, label=r"Validation CIFAR-10, prior: $U(a, b)$", color='darkblue')
 

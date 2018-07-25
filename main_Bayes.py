@@ -19,7 +19,7 @@ num_samples = 1  # because of Casper's trick
 batch_size = 1
 beta_type = "None"
 net = BBBCNN1
-dataset = 'CIFAR-100'  # MNIST, CIFAR-10, CIFAR-100 or ImageNet
+dataset = 'CIFAR-100'  # MNIST, CIFAR-10, CIFAR-100
 num_epochs = 100
 p_logvar_init = 0
 q_logvar_init = -10
@@ -35,9 +35,6 @@ elif dataset is 'CIFAR-10':  # train with CIFAR-10
     inputs = 3
 elif dataset is 'CIFAR-100':    # train with CIFAR-100
     outputs = 100
-    inputs = 3
-elif dataset is 'ImageNet':    # train with ImageNet
-    outputs = 1000
     inputs = 3
 else:
     pass

@@ -15,7 +15,7 @@ HYPERPARAMETERS
 is_training = True  # set to "False" to only run validation
 net = CNN1
 batch_size = 64
-dataset = 'CIFAR-100'  # MNIST, CIFAR-10 or CIFAR-100
+dataset = 'CIFAR-100'  # MNIST, CIFAR-10, CIFAR-100
 num_epochs = 100
 lr = 0.00001
 weight_decay = 0.0005
@@ -29,9 +29,6 @@ elif dataset is 'CIFAR-10':  # train with CIFAR-10
     inputs = 3
 elif dataset is 'CIFAR-100':    # train with CIFAR-100
     outputs = 100
-    inputs = 3
-elif dataset is 'ImageNet':    # train with ImageNet
-    outputs = 1000
     inputs = 3
 else:
     pass

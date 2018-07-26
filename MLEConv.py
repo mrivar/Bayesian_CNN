@@ -5,7 +5,7 @@ import torchvision.transforms as transforms
 import torch.utils.data as data
 import torch.nn as nn
 import pickle
-from MAPConvmodels import LeNet, _3Conv3FC, ELUN1, CNN1
+from MLEConvmodels import LeNet, _3Conv3FC, ELUN1, CNN1
 
 cuda = torch.cuda.is_available()
 
@@ -14,8 +14,8 @@ HYPERPARAMETERS
 '''
 is_training = True  # set to "False" to only run validation
 net = _3Conv3FC
-batch_size = 32
-dataset = 'Monkeys'  # MNIST, CIFAR-10, CIFAR-100 or Monkey species
+batch_size = 128
+dataset = 'MNIST'  # MNIST, CIFAR-10, CIFAR-100, Monkey species or LSUN
 num_epochs = 100
 lr = 0.00001
 weight_decay = 0.0005
@@ -31,6 +31,9 @@ elif dataset is 'CIFAR-100':    # train with CIFAR-100
     outputs = 100
     inputs = 3
 elif dataset is 'Monkeys':    # train with Monkey species
+    outputs = 10
+    inputs = 3
+elif dataset is 'LSUN':     # train with LSUN
     outputs = 10
     inputs = 3
 else:
@@ -54,8 +57,8 @@ LOADING DATASET
 if dataset is 'MNIST':
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
                                     transforms.Normalize((0.1307,), (0.3081,))])
-    train_dataset = dsets.MNIST(root="data", download=True, transform=transform)
-    val_dataset = dsets.MNIST(root="data", download=True, train=False, transform=transform)
+    train_dataset = dsets.FashionMNIST(root="data", download=True, transform=transform)
+    val_dataset = dsets.FashionMNIST(root="data", download=True, train=False, transform=transform)
 
 elif dataset is 'CIFAR-100':
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
@@ -74,6 +77,12 @@ elif dataset is 'Monkeys':
                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
     train_dataset = dsets.ImageFolder(root="data/10-monkey-species/training", transform=transform)
     val_dataset = dsets.ImageFolder(root="data/10-monkey-species/validation", transform=transform)
+
+elif dataset is 'LSUN':
+    transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
+                                    transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    train_dataset = dsets.LSUN(root="data/lsun", classes="train", transform=transform)
+    val_dataset = dsets.LSUN(root="data/lsun", classes="val", transform=transform)
 
 '''
 MAKING DATASET ITERABLE
@@ -94,15 +103,15 @@ INSTANTIATE MODEL
 '''
 
 model = net(outputs=outputs, inputs=inputs)
-"""
+
 if cuda:
     model.cuda()
-"""
+
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
 optimiser = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr, weight_decay=weight_decay)
 
-logfile = os.path.join('diagnostics_1.txt')
+logfile = os.path.join('diagnostics_MLE_F.txt')
 with open(logfile, 'w') as lf:
     lf.write('')
 
@@ -112,14 +121,14 @@ def run_epoch(loader):
     losses = []
 
     for i, (images, labels) in enumerate(loader):
-        # Repeat samples (Casper's trick)
+
         x = images.view(-1, inputs, resize, resize)
         y = labels
-        """
+
         if cuda:
             x = x.cuda()
             y = y.cuda()
-        """
+
         # Forward pass
         outputs = model(x)
         loss = criterion(outputs, y)
@@ -165,7 +174,7 @@ for epoch in range(num_epochs):
 SAVE PARAMETERS
 '''
 if is_training:
-    weightsfile = os.path.join("weights_1.pkl")
+    weightsfile = os.path.join("weights_MLE.pkl")
     with open(weightsfile, "wb") as wf:
         pickle.dump(model.state_dict(), wf)
 

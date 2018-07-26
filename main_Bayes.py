@@ -16,10 +16,10 @@ HYPERPARAMETERS
 '''
 is_training = True  # set to "False" to only run validation
 num_samples = 10  # because of Casper's trick
-batch_size = 16
+batch_size = 32
 beta_type = "Blundell"
 net = BBB3Conv3FC
-dataset = 'Monkeys'  # MNIST, CIFAR-10, CIFAR-100 or Monkey species
+dataset = 'MNIST'  # MNIST, CIFAR-10, CIFAR-100 or Monkey species
 num_epochs = 100
 p_logvar_init = 0
 q_logvar_init = -10
@@ -50,8 +50,6 @@ elif net is BBBELUN1:
     resize = 32
 elif net is BBBCNN1:
     resize = 32
-elif net is BBBELUN2:
-    resize = 224
 else:
     pass
 
@@ -62,8 +60,8 @@ LOADING DATASET
 if dataset is 'MNIST':
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
                                     transforms.Normalize((0.1307,), (0.3081,))])
-    train_dataset = dsets.MNIST(root="data", download=True, transform=transform)
-    val_dataset = dsets.MNIST(root="data", download=True, train=False, transform=transform)
+    train_dataset = dsets.FashionMNIST(root="data", download=True, transform=transform)
+    val_dataset = dsets.FashionMNIST(root="data", download=True, train=False, transform=transform)
 
 elif dataset is 'CIFAR-100':
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
@@ -106,7 +104,7 @@ model = net(outputs=outputs, inputs=inputs)
 if cuda:
     model.cuda()
 
-model = torch.nn.DataParallel(model)
+#model = torch.nn.DataParallel(model)
 
 '''
 INSTANTIATE VARIATIONAL INFERENCE AND OPTIMISER
@@ -128,7 +126,7 @@ for i in range(len(list(model.parameters()))):
 TRAIN MODEL
 '''
 
-logfile = os.path.join('diagnostics_1.txt')
+logfile = os.path.join('diagnostics_Bayes.txt')
 with open(logfile, 'w') as lf:
     lf.write('')
 
@@ -208,7 +206,7 @@ for epoch in range(num_epochs):
 SAVE PARAMETERS
 '''
 if is_training:
-    weightsfile = os.path.join("weights_1.pkl")
+    weightsfile = os.path.join("weights_Bayes.pkl")
     with open(weightsfile, "wb") as wf:
         pickle.dump(model.state_dict(), wf)
 

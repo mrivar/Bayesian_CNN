@@ -60,14 +60,17 @@ print(valid_2)
 print(valid_3)
 print(valid_4)
 
-plt.plot(valid_1, label=r"Validation MNIST, $MLE$", color='maroon', linestyle='--')
-plt.plot(valid_2, label=r"Validation CIFAR-10, $MLE$", color='darkblue', linestyle='--')
-plt.plot(valid_3, label=r"Validation MNIST, prior: $U(a, b)$", color='maroon')
-plt.plot(valid_4, label=r"Validation CIFAR-10, prior: $U(a, b)$", color='darkblue')
+plt.plot(valid_1, label=r"MNIST, $MLE$", color='maroon', linestyle='--')
+plt.plot(valid_2, label=r"CIFAR-10, $MLE$", color='darkblue', linestyle='--')
+plt.plot(valid_3, label=r"MNIST, prior: $U(a, b)$", color='maroon')
+plt.plot(valid_4, label=r"CIFAR-10, prior: $U(a, b)$", color='darkblue')
+plt.plot(valid_5, label=r"Fashion-MNIST, prior: $U(a, b)$", color='m')
+plt.plot(valid_6, label=r"Fashion-MNIST, $MLE$", color='m', linestyle='--')
+
 
 
 plt.xlabel("Epochs")
-plt.ylabel("Accuracy")
+plt.ylabel("Validation Accuracy")
 x_ticks = range(len(valid_1))
 plt.xticks(x_ticks[9::10], map(lambda x: x+1, x_ticks[9::10]))
 

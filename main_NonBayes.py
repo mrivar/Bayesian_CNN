@@ -1,16 +1,17 @@
-import math
-import pickle
-import torch.cuda
+import torch
+import os
+import torchvision.datasets as dsets
 import torchvision.transforms as transforms
 import torch.utils.data as data
-import torchvision.datasets as dsets
-import os
+import torch.nn as nn
+import pickle
 
-from utils.BBBlayers import GaussianVariationalInference
-from utils.BayesianModels.Bayesian3Conv3FC import BBB3Conv3FC
-from utils.BayesianModels.BayesianELUN1 import BBBELUN1
-from utils.BayesianModels.BayesianExperimentalCNNModel import BBBCNN1
-from utils.BayesianModels.BayesianLeNet import BBBLeNet
+from utils.NonBayesianModels.LeNet import LeNet
+from utils.NonBayesianModels.ELUN1 import ELUN1
+from utils.NonBayesianModels.ELUN2 import ELUN2
+from utils.NonBayesianModels.ExperimentalCNNModel import CNN1
+from utils.NonBayesianModels.ThreeConvThreeFC import ThreeConvThreeFC
+
 
 cuda = torch.cuda.is_available()
 
@@ -18,14 +19,10 @@ cuda = torch.cuda.is_available()
 HYPERPARAMETERS
 '''
 is_training = True  # set to "False" to only run validation
-num_samples = 10  # because of Casper's trick
-batch_size = 32
-beta_type = "Blundell"
-net = BBBLeNet
-dataset = 'MNIST'  # MNIST, CIFAR-10, CIFAR-100 or Monkey species
+net = ThreeConvThreeFC
+batch_size = 128
+dataset = 'MNIST'  # MNIST, CIFAR-10, CIFAR-100, Monkey species or LSUN
 num_epochs = 100
-p_logvar_init = 0
-q_logvar_init = -10
 lr = 0.00001
 weight_decay = 0.0005
 
@@ -42,16 +39,19 @@ elif dataset is 'CIFAR-100':    # train with CIFAR-100
 elif dataset is 'Monkeys':    # train with Monkey species
     outputs = 10
     inputs = 3
+elif dataset is 'LSUN':     # train with LSUN
+    outputs = 10
+    inputs = 3
 else:
     pass
 
-if net is BBBLeNet:
+if net is LeNet:
     resize = 32
-elif net is BBB3Conv3FC:
+elif net is ThreeConvThreeFC:
     resize = 32
-elif net is BBBELUN1:
+elif net is ELUN1:
     resize = 32
-elif net is BBBCNN1:
+elif net is CNN1:
     resize = 32
 else:
     pass
@@ -70,19 +70,25 @@ elif dataset is 'CIFAR-100':
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
     train_dataset = dsets.CIFAR100(root="data", download=True, transform=transform)
-    val_dataset = dsets.CIFAR100(root='data', download=True, train=False, transform=transform)
+    val_dataset = dsets.CIFAR100(root="data", download=True, train=False, transform=transform)
 
 elif dataset is 'CIFAR-10':
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
     train_dataset = dsets.CIFAR10(root="data", download=True, transform=transform)
-    val_dataset = dsets.CIFAR10(root='data', download=True, train=False, transform=transform)
+    val_dataset = dsets.CIFAR10(root="data", download=True, train=False, transform=transform)
 
 elif dataset is 'Monkeys':
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
     train_dataset = dsets.ImageFolder(root="data/10-monkey-species/training", transform=transform)
     val_dataset = dsets.ImageFolder(root="data/10-monkey-species/validation", transform=transform)
+
+elif dataset is 'LSUN':
+    transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
+                                    transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    train_dataset = dsets.LSUN(root="data/lsun", classes="train", transform=transform)
+    val_dataset = dsets.LSUN(root="data/lsun", classes="val", transform=transform)
 
 '''
 MAKING DATASET ITERABLE
@@ -107,88 +113,53 @@ model = net(outputs=outputs, inputs=inputs)
 if cuda:
     model.cuda()
 
-#model = torch.nn.DataParallel(model)
-
-'''
-INSTANTIATE VARIATIONAL INFERENCE AND OPTIMISER
-'''
-vi = GaussianVariationalInference(torch.nn.CrossEntropyLoss())
+# Loss and optimizer
+criterion = nn.CrossEntropyLoss()
 optimiser = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr, weight_decay=weight_decay)
 
-'''
-check parameter matrix shapes
-'''
-
-# how many parameter matrices do we have?
-print('Number of parameter matrices: ', len(list(model.parameters())))
-
-for i in range(len(list(model.parameters()))):
-    print(list(model.parameters())[i].size())
-
-'''
-TRAIN MODEL
-'''
-
-logfile = os.path.join('diagnostics_Bayes.txt')
+logfile = os.path.join('diagnostics_MLE_F.txt')
 with open(logfile, 'w') as lf:
     lf.write('')
 
 
-def run_epoch(loader, epoch, is_training=False):
-    m = math.ceil(len(loader.dataset) / loader.batch_size)
-
+def run_epoch(loader):
     accuracies = []
-    likelihoods = []
-    kls = []
     losses = []
 
     for i, (images, labels) in enumerate(loader):
-        # Repeat samples (Casper's trick)
-        x = images.view(-1, inputs, resize, resize).repeat(num_samples, 1, 1, 1)
-        y = labels.repeat(num_samples)
+
+        x = images.view(-1, inputs, resize, resize)
+        y = labels
 
         if cuda:
             x = x.cuda()
             y = y.cuda()
 
-        if beta_type is "Blundell":
-            beta = 2 ** (m - (i + 1)) / (2 ** m - 1)
-        elif beta_type is "Soenderby":
-            beta = min(epoch / (num_epochs//4), 1)
-        elif beta_type is "Standard":
-            beta = 1 / m
-        else:
-            beta = 0
-
-        logits, kl = model.probforward(x)
-        loss = vi(logits, y, kl, beta)
-        ll = -loss.data.mean() + beta*kl.data.mean()
+        # Forward pass
+        outputs = model(x)
+        loss = criterion(outputs, y)
 
         if is_training:
             optimiser.zero_grad()
             loss.backward()
             optimiser.step()
 
-        _, predicted = logits.max(1)
+        _, predicted = outputs.max(1)
         accuracy = (predicted.data.cpu() == y.cpu()).float().mean()
 
         accuracies.append(accuracy)
         losses.append(loss.data.mean())
-        kls.append(beta*kl.data.mean())
-        likelihoods.append(ll)
 
-    diagnostics = {'loss': sum(losses)/len(losses),
-                   'acc': sum(accuracies)/len(accuracies),
-                   'kl': sum(kls)/len(kls),
-                   'likelihood': sum(likelihoods)/len(likelihoods)}
+    diagnostics = {'loss': sum(losses) / len(losses),
+                   'acc': sum(accuracies) / len(accuracies)}
 
     return diagnostics
 
 
 for epoch in range(num_epochs):
     if is_training is True:
-        diagnostics_train = run_epoch(loader_train, epoch, is_training=True)
-        diagnostics_val = run_epoch(loader_val, epoch)
+        diagnostics_train = run_epoch(loader_train)
+        diagnostics_val = run_epoch(loader_val)
         diagnostics_train = dict({"type": "train", "epoch": epoch}, **diagnostics_train)
         diagnostics_val = dict({"type": "validation", "epoch": epoch}, **diagnostics_val)
         print(diagnostics_train)
@@ -198,7 +169,7 @@ for epoch in range(num_epochs):
             lf.write(str(diagnostics_train))
             lf.write(str(diagnostics_val))
     else:
-        diagnostics_val = run_epoch(loader_val, epoch)
+        diagnostics_val = run_epoch(loader_val)
         diagnostics_val = dict({"type": "validation", "epoch": epoch}, **diagnostics_val)
         print(diagnostics_val)
 
@@ -209,7 +180,7 @@ for epoch in range(num_epochs):
 SAVE PARAMETERS
 '''
 if is_training:
-    weightsfile = os.path.join("weights_Bayes.pkl")
+    weightsfile = os.path.join("weights_MLE.pkl")
     with open(weightsfile, "wb") as wf:
         pickle.dump(model.state_dict(), wf)
 

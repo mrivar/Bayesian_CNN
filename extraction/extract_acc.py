@@ -9,7 +9,7 @@ plt.rc('font', family='serif', size=32)
 plt.rcParams.update({'xtick.labelsize': 32, 'ytick.labelsize': 32, 'axes.labelsize': 32})
 
 # change for given number of tasks
-os.chdir("/home/felix/Dropbox/Research/publications/Bayesian_CNN/results/")
+os.chdir("results")
 
 with open("diagnostics_MNIST.txt", 'r') as file:
     acc = re.findall(r"'acc':\s+tensor\((.*?)\)", file.read())

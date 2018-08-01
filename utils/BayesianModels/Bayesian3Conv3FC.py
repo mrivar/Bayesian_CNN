@@ -1,9 +1,9 @@
 import torch.nn as nn
 from utils.BBBlayers import BBBConv2d, BBBLinearFactorial, FlattenLayer
 
+
 class BBB3Conv3FC(nn.Module):
     """
-
     Simple Neural Network having 3 Convolution
     and 3 FC layers with Bayesian layers.
     """

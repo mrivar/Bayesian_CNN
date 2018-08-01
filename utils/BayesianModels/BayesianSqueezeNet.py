@@ -4,7 +4,9 @@ from utils.BBBlayers import BBBConv2d
 
 
 class BBBSqueezeNet(nn.Module):
-
+    """
+    SqueezeNet with slightly modified Fire modules and Bayesian layers.
+    """
     def __init__(self, outputs, inputs):
         super(BBBSqueezeNet, self).__init__()
 

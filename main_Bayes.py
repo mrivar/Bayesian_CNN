@@ -11,6 +11,7 @@ from utils.BayesianModels.Bayesian3Conv3FC import BBB3Conv3FC
 from utils.BayesianModels.BayesianELUN1 import BBBELUN1
 from utils.BayesianModels.BayesianExperimentalCNNModel import BBBCNN1
 from utils.BayesianModels.BayesianLeNet import BBBLeNet
+from utils.BayesianModels.BayesianSqueezeNet import BBBSqueezeNet
 
 cuda = torch.cuda.is_available()
 
@@ -18,10 +19,10 @@ cuda = torch.cuda.is_available()
 HYPERPARAMETERS
 '''
 is_training = True  # set to "False" to only run validation
-num_samples = 10  # because of Casper's trick
-batch_size = 32
+num_samples = 1  # because of Casper's trick
+batch_size = 2
 beta_type = "Blundell"
-net = BBBLeNet
+net = BBBSqueezeNet
 dataset = 'MNIST'  # MNIST, CIFAR-10, CIFAR-100 or Monkey species
 num_epochs = 100
 p_logvar_init = 0
@@ -53,6 +54,8 @@ elif net is BBBELUN1:
     resize = 32
 elif net is BBBCNN1:
     resize = 32
+elif net is BBBSqueezeNet:
+    resize = 224
 else:
     pass
 

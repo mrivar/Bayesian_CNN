@@ -10,7 +10,8 @@ from utils.NonBayesianModels.LeNet import LeNet
 from utils.NonBayesianModels.ELUN1 import ELUN1
 from utils.NonBayesianModels.ELUN2 import ELUN2
 from utils.NonBayesianModels.ExperimentalCNNModel import CNN1
-from utils.NonBayesianModels.ThreeConvThreeFC import ThreeConvThreeFC
+from utils.NonBayesianModels._3Conv3FC import _3Conv3FC
+from utils.NonBayesianModels.SqueezeNet import SqueezeNet
 
 
 cuda = torch.cuda.is_available()
@@ -19,8 +20,8 @@ cuda = torch.cuda.is_available()
 HYPERPARAMETERS
 '''
 is_training = True  # set to "False" to only run validation
-net = ThreeConvThreeFC
-batch_size = 128
+net = SqueezeNet
+batch_size = 2
 dataset = 'MNIST'  # MNIST, CIFAR-10, CIFAR-100, Monkey species or LSUN
 num_epochs = 100
 lr = 0.00001
@@ -39,20 +40,19 @@ elif dataset is 'CIFAR-100':    # train with CIFAR-100
 elif dataset is 'Monkeys':    # train with Monkey species
     outputs = 10
     inputs = 3
-elif dataset is 'LSUN':     # train with LSUN
-    outputs = 10
-    inputs = 3
 else:
     pass
 
 if net is LeNet:
     resize = 32
-elif net is ThreeConvThreeFC:
+elif net is _3Conv3FC:
     resize = 32
 elif net is ELUN1:
     resize = 32
 elif net is CNN1:
     resize = 32
+elif net is SqueezeNet:
+    resize = 224
 else:
     pass
 
@@ -84,11 +84,6 @@ elif dataset is 'Monkeys':
     train_dataset = dsets.ImageFolder(root="data/10-monkey-species/training", transform=transform)
     val_dataset = dsets.ImageFolder(root="data/10-monkey-species/validation", transform=transform)
 
-elif dataset is 'LSUN':
-    transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
-                                    transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-    train_dataset = dsets.LSUN(root="data/lsun", classes="train", transform=transform)
-    val_dataset = dsets.LSUN(root="data/lsun", classes="val", transform=transform)
 
 '''
 MAKING DATASET ITERABLE

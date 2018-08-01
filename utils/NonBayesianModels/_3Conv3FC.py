@@ -1,13 +1,13 @@
 import torch.nn as nn
 from utils.BBBlayers import FlattenLayer
 
-class ThreeConvThreeFC(nn.Module):
+class _3Conv3FC(nn.Module):
     """
     To train on CIFAR-10:
     https://arxiv.org/pdf/1207.0580.pdf
     """
     def __init__(self, outputs, inputs):
-        super(ThreeConvThreeFC, self).__init__()
+        super(_3Conv3FC, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(inputs, 32, 5, stride=1, padding=2),
             nn.Softplus(),

@@ -7,30 +7,33 @@ import torchvision.transforms as transforms
 import torch.utils.data as data
 import torch.nn as nn
 
+from utils.NonBayesianModels.AlexNet import AlexNet
 from utils.NonBayesianModels.LeNet import LeNet
 from utils.NonBayesianModels.ELUN1 import ELUN1
 from utils.NonBayesianModels.ExperimentalCNNModel import CNN1
 from utils.NonBayesianModels.SqueezeNet import SqueezeNet
 from utils.NonBayesianModels.ThreeConvThreeFC import ThreeConvThreeFC
 
-
 cuda = torch.cuda.is_available()
-#torch.cuda.set_device(1)
+torch.cuda.set_device(1)
+#device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 '''
 HYPERPARAMETERS
 '''
 is_training = True  # set to "False" to only run validation
-net = SqueezeNet
-batch_size = 512
+net = LeNet
+batch_size = 1024
 dataset = 'CIFAR-100'  # MNIST, CIFAR-10, CIFAR-100, Monkey species or LSUN
-num_epochs = 100
-lr = 0.00001
+num_epochs = 200
+lr = 0.001
 weight_decay = 0.0005
 
 if net is LeNet:
     resize = 32
 elif net is ThreeConvThreeFC:
+    resize = 32
+elif net is AlexNet:
     resize = 32
 elif net is ELUN1:
     resize = 32
@@ -101,81 +104,47 @@ loader_val = data.DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle
 '''
 INSTANTIATE MODEL
 '''
+#model = torch.nn.DataParallel(model, device_ids=[0,1]).cuda()
+model = net(outputs=outputs, inputs=inputs).cuda()
 
-model = net(outputs=outputs, inputs=inputs)
-model = torch.nn.DataParallel(model, device_ids=[0,1]).cuda()
-
-if cuda:
-    model.cuda()
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
-optimiser = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr, weight_decay=weight_decay)
+optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-logfile = os.path.join('diagnostics_MLE_F.txt')
-with open(logfile, 'w') as lf:
-    lf.write('')
-
-
-def run_epoch(loader):
-    accuracies = []
-    losses = []
-
-    for i, (images, labels) in enumerate(loader):
-
-        x = images.view(-1, inputs, resize, resize)
-        y = labels
-
-        if cuda:
-            x = x.cuda()
-            y = y.cuda()
+total_step = len(loader_train)
+for epoch in range(num_epochs):
+    for i, (images, labels) in enumerate(loader_train):
+        images = images.cuda()
+        labels = labels.cuda()
 
         # Forward pass
-        outputs = model(x)
-        loss = criterion(outputs, y)
+        outputs = model(images)
+        loss = criterion(outputs, labels)
 
-        if is_training:
-            optimiser.zero_grad()
-            loss.backward()
-            optimiser.step()
+        # Backward and optimize
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-        _, predicted = outputs.max(1)
-        accuracy = (predicted.data.cpu() == y.cpu()).float().mean()
+        if (i + 1) % 100 == 0:
+            print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'
+                   .format(epoch + 1, num_epochs, i + 1, total_step, loss.item()))
 
-        accuracies.append(accuracy)
-        losses.append(loss.data.mean())
+# Test the model
+model.eval()  # eval mode (batchnorm uses moving mean/variance instead of mini-batch mean/variance)
+with torch.no_grad():
+    correct = 0
+    total = 0
+    for images, labels in loader_val:
+        images = images.cuda()
+        labels = labels.cuda()
+        outputs = model(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
 
-    diagnostics = {'loss': sum(losses) / len(losses),
-                   'acc': sum(accuracies) / len(accuracies)}
+    print('Test Accuracy on test images: {} %'.format(100 * correct / total))
 
-    return diagnostics
-
-
-for epoch in range(num_epochs):
-    if is_training is True:
-        diagnostics_train = run_epoch(loader_train)
-        diagnostics_val = run_epoch(loader_val)
-        diagnostics_train = dict({"type": "train", "epoch": epoch}, **diagnostics_train)
-        diagnostics_val = dict({"type": "validation", "epoch": epoch}, **diagnostics_val)
-        print(diagnostics_train)
-        print(diagnostics_val)
-
-        with open(logfile, 'a') as lf:
-            lf.write(str(diagnostics_train))
-            lf.write(str(diagnostics_val))
-    else:
-        diagnostics_val = run_epoch(loader_val)
-        diagnostics_val = dict({"type": "validation", "epoch": epoch}, **diagnostics_val)
-        print(diagnostics_val)
-
-        with open(logfile, 'a') as lf:
-            lf.write(str(diagnostics_val))
-
-'''
-SAVE PARAMETERS
-'''
-if is_training:
-    weightsfile = os.path.join("weights_MLE.pkl")
-    with open(weightsfile, "wb") as wf:
-        pickle.dump(model.state_dict(), wf)
-
+# Save the model checkpoint
+torch.save(model.state_dict(), 'model_new_acc.ckpt')

@@ -1,6 +1,5 @@
-import torch
 import torch.nn as nn
-from utils.BBBlayers import BBBConv2d
+from utils.BBBlayers import BBBConv2d, FlattenLayer, BBBLinearFactorial
 
 
 class BBBSqueezeNet(nn.Module):
@@ -69,7 +68,8 @@ class BBBSqueezeNet(nn.Module):
         self.drop1 = nn.Dropout(p=0.5)
         self.conv2 = BBBConv2d(512, outputs, kernel_size=1)
         self.soft2 = nn.Softplus()
-        self.pool4 = nn.AvgPool2d(13, stride=1)
+        self.flatten = FlattenLayer(13 * 13 * 100)
+        self.fc1 = BBBLinearFactorial(13 * 13 * 100, outputs)
 
         layers = [self.conv1, self.soft1, self.pool1,
                   self.squeeze1, self.squeeze_activation1, self.expand3x3_1, self.expand3x3_activation1,
@@ -82,7 +82,7 @@ class BBBSqueezeNet(nn.Module):
                   self.squeeze6, self.squeeze_activation6, self.expand3x3_6, self.expand3x3_activation6,
                   self.squeeze7, self.squeeze_activation7, self.expand3x3_7, self.expand3x3_activation7,
                   self.squeeze8, self.squeeze_activation8, self.expand3x3_8, self.expand3x3_activation8,
-                  self.drop1, self.conv2, self.soft2, self.pool4]
+                  self.drop1, self.conv2, self.soft2, self.flatten, self.fc1]
 
         self.layers = nn.ModuleList(layers)
 
@@ -91,13 +91,14 @@ class BBBSqueezeNet(nn.Module):
         kl = 0
         for layer in self.layers:
             if hasattr(layer, 'convprobforward') and callable(layer.convprobforward):
-                logits, _kl, = layer.convprobforward(x)
+                x, _kl, = layer.convprobforward(x)
                 kl += _kl
 
             elif hasattr(layer, 'fcprobforward') and callable(layer.fcprobforward):
-                logits, _kl, = layer.fcprobforward(x)
+                x, _kl, = layer.fcprobforward(x)
                 kl += _kl
             else:
-                logits = layer(x)
+                x = layer(x)
+        logits = x
         print('logits', logits)
         return logits, kl

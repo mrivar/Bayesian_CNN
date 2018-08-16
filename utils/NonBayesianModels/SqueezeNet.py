@@ -1,7 +1,6 @@
-import math
 import torch
 import torch.nn as nn
-
+from utils.BBBlayers import FlattenLayer
 
 class Fire(nn.Module):
 
@@ -51,7 +50,8 @@ class SqueezeNet(nn.Module):
             nn.Dropout(p=0.5),
             nn.Conv2d(512, self.outputs, kernel_size=1),
             nn.ReLU(inplace=True),
-            nn.AvgPool2d(13, stride=1)
+            FlattenLayer(13 * 13 * 100),
+            nn.Linear(13 * 13 * 100, outputs)
         )
 
     def forward(self, x):

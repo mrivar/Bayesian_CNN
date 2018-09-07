@@ -24,14 +24,15 @@ from utils.NonBayesianModels.AlexNet import AlexNet
 from utils.NonBayesianModels.LeNet import LeNet
 from utils.NonBayesianModels.SqueezeNet import SqueezeNet
 from utils.NonBayesianModels.wide_resnet import Wide_ResNet
+from utils.NonBayesianModels.ThreeConvThreeFC import ThreeConvThreeFC
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR-10 Training')
-parser.add_argument('--lr', default=0.1, type=float, help='learning_rate')
-parser.add_argument('--net_type', default='AlexNet', type=str, help='model')
+parser.add_argument('--lr', default=0.001, type=float, help='learning_rate')
+parser.add_argument('--net_type', default='alexnet', type=str, help='model')
 parser.add_argument('--depth', default=28, type=int, help='depth of model')
 parser.add_argument('--widen_factor', default=10, type=int, help='width of model')
 parser.add_argument('--dropout', default=0.3, type=float, help='dropout_rate')
-parser.add_argument('--dataset', default='cifar10', type=str, help='dataset = [mnist/cifar10/cifar100/fashionmnist]')
+parser.add_argument('--dataset', default='cifar100', type=str, help='dataset = [mnist/cifar10/cifar100/fashionmnist/stl10]')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 parser.add_argument('--testOnly', '-t', action='store_true', help='Test mode with the saved model')
 args = parser.parse_args()
@@ -39,18 +40,20 @@ args = parser.parse_args()
 # Hyper Parameter settings
 use_cuda = torch.cuda.is_available()
 best_acc = 0
+resize=32
 start_epoch, num_epochs, batch_size, optim_type = cf.start_epoch, cf.num_epochs, cf.batch_size, cf.optim_type
 
 # Data Uplaod
 print('\n[Phase 1] : Data Preparation')
+
 transform_train = transforms.Compose([
-    transforms.RandomCrop(32, padding=4),
-    transforms.RandomHorizontalFlip(),
+    transforms.Resize((resize, resize)),
     transforms.ToTensor(),
     transforms.Normalize(cf.mean[args.dataset], cf.std[args.dataset]),
-]) # meanstd transformation
+])  # meanstd transformation
 
 transform_test = transforms.Compose([
+    transforms.Resize((resize, resize)),
     transforms.ToTensor(),
     transforms.Normalize(cf.mean[args.dataset], cf.std[args.dataset]),
 ])
@@ -85,10 +88,17 @@ elif(args.dataset == 'fashionmnist'):
     trainset = torchvision.datasets.FashionMNIST(root='./data', train=True, download=True, transform=transform_train)
     testset = torchvision.datasets.FashionMNIST(root='./data', train=False, download=False, transform=transform_test)
     num_classes = 10
+    inputs = 1
+elif (args.dataset == 'stl10'):
+    print("| Preparing STL10 dataset...")
+    sys.stdout.write("| ")
+    trainset = torchvision.datasets.STL10(root='./data',  split='train', download=True, transform=transform_train)
+    testset = torchvision.datasets.STL10(root='./data',  split='test', download=False, transform=transform_test)
+    num_classes = 10
     inputs = 3
 
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
-testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=4)
+testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=4)
 
 # Return network & file name
 def getNetwork(args):
@@ -97,10 +107,13 @@ def getNetwork(args):
         file_name = 'lenet'
     elif (args.net_type == 'alexnet'):
         net = AlexNet(num_classes,inputs)
-        file_name = 'alexnet-'+str(args.depth)
+        file_name = 'alexnet-'
+    elif (args.net_type == '3conv3fc'):
+        net = AlexNet(num_classes, inputs)
+        file_name = 'ThreeConvThreeFC-'
     elif (args.net_type == 'squeezenet'):
         net = SqueezeNet(num_classes,inputs)
-        file_name = 'squeezenet-'+str(args.depth)
+        file_name = 'squeezenet-'
     elif (args.net_type == 'resnet'):
         net = ResNet(args.depth, num_classes,inputs)
         file_name = 'resnet-' + str(args.depth)
@@ -168,6 +181,7 @@ if use_cuda:
     cudnn.benchmark = True
 
 criterion = nn.CrossEntropyLoss()
+logfile = os.path.join('diagnostics_NonBayes{}_{}.txt'.format(args.net_type, args.dataset))
 
 # Training
 def train(epoch):
@@ -175,15 +189,15 @@ def train(epoch):
     train_loss = 0
     correct = 0
     total = 0
-    optimizer = optim.SGD(net.parameters(), lr=cf.learning_rate(args.lr, epoch), momentum=0.9, weight_decay=5e-4)
+    optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=5e-4)
 
     print('\n=> Training Epoch #%d, LR=%.4f' %(epoch, cf.learning_rate(args.lr, epoch)))
-    for batch_idx, (inputs, targets) in enumerate(trainloader):
+    for batch_idx, (inputs_value, targets) in enumerate(trainloader):
         if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda() # GPU settings
+            inputs_value, targets = inputs_value.cuda(), targets.cuda() # GPU settings
         optimizer.zero_grad()
-        inputs, targets = Variable(inputs), Variable(targets)
-        outputs = net(inputs)               # Forward Propagation
+        inputs_value, targets = Variable(inputs_value), Variable(targets)
+        outputs = net(inputs_value)               # Forward Propagation
         loss = criterion(outputs, targets)  # Loss
         loss.backward()  # Backward Propagation
         optimizer.step() # Optimizer update
@@ -198,6 +212,9 @@ def train(epoch):
                 %(epoch, num_epochs, batch_idx+1,
                     (len(trainset)//batch_size)+1, loss.data[0], 100.*correct/total))
         sys.stdout.flush()
+    diagnostics_to_write = {'Epoch': epoch, 'Loss': loss.data[0], 'Accuracy': 100*correct / total}
+    with open(logfile, 'a') as lf:
+        lf.write(str(diagnostics_to_write))
 
 def test(epoch):
     global best_acc
@@ -205,11 +222,12 @@ def test(epoch):
     test_loss = 0
     correct = 0
     total = 0
-    for batch_idx, (inputs, targets) in enumerate(testloader):
+    for batch_idx, (inputs_value, targets) in enumerate(testloader):
         if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda()
-        inputs, targets = Variable(inputs, volatile=True), Variable(targets)
-        outputs = net(inputs)
+            inputs_value, targets = inputs_value.cuda(), targets.cuda()
+        with torch.no_grad():
+            inputs_value, targets = Variable(inputs_value), Variable(targets)
+        outputs = net(inputs_value)
         loss = criterion(outputs, targets)
 
         test_loss += loss.data[0]
@@ -220,6 +238,9 @@ def test(epoch):
     # Save checkpoint when best model
     acc = 100.*correct/total
     print("\n| Validation Epoch #%d\t\t\tLoss: %.4f Acc@1: %.2f%%" %(epoch, loss.data[0], acc))
+    test_diagnostics_to_write = {'Validation Epoch': epoch, 'Loss': loss.data[0], 'Accuracy': acc}
+    with open(logfile, 'a') as lf:
+        lf.write(str(test_diagnostics_to_write))
 
     if acc > best_acc:
         print('| Saving Best model...\t\t\tTop1 = %.2f%%' %(acc))

@@ -1,88 +1,95 @@
-import torch
 import os
+import pickle
+
+import torch
 import torchvision.datasets as dsets
 import torchvision.transforms as transforms
 import torch.utils.data as data
 import torch.nn as nn
-import pickle
-from MLEConvmodels import LeNet, _3Conv3FC, ELUN1, CNN1
+
+from utils.NonBayesianModels.LeNet import LeNet
+from utils.NonBayesianModels.ELUN1 import ELUN1
+from utils.NonBayesianModels.ExperimentalCNNModel import CNN1
+from utils.NonBayesianModels.SqueezeNet import SqueezeNet
+from utils.NonBayesianModels.ThreeConvThreeFC import ThreeConvThreeFC
+
 
 cuda = torch.cuda.is_available()
+#torch.cuda.set_device(1)
 
 '''
 HYPERPARAMETERS
 '''
 is_training = True  # set to "False" to only run validation
-net = _3Conv3FC
-batch_size = 128
-dataset = 'MNIST'  # MNIST, CIFAR-10, CIFAR-100, Monkey species or LSUN
+net = LeNet
+batch_size = 512
+dataset = 'STL10'  # MNIST, CIFAR-10, CIFAR-100, Monkey species or LSUN
 num_epochs = 100
-lr = 0.00001
+lr = 0.001
 weight_decay = 0.0005
-
-# dimensions of input and output
-if dataset is 'MNIST':    # train with MNIST version
-    outputs = 10
-    inputs = 1
-elif dataset is 'CIFAR-10':  # train with CIFAR-10
-    outputs = 10
-    inputs = 3
-elif dataset is 'CIFAR-100':    # train with CIFAR-100
-    outputs = 100
-    inputs = 3
-elif dataset is 'Monkeys':    # train with Monkey species
-    outputs = 10
-    inputs = 3
-elif dataset is 'LSUN':     # train with LSUN
-    outputs = 10
-    inputs = 3
-else:
-    pass
 
 if net is LeNet:
     resize = 32
-elif net is _3Conv3FC:
+elif net is ThreeConvThreeFC:
     resize = 32
 elif net is ELUN1:
     resize = 32
 elif net is CNN1:
     resize = 32
+elif net is SqueezeNet:
+    resize = 224
 else:
     pass
 
 '''
 LOADING DATASET
 '''
-
 if dataset is 'MNIST':
+    outputs = 10
+    inputs = 1
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
                                     transforms.Normalize((0.1307,), (0.3081,))])
     train_dataset = dsets.FashionMNIST(root="data", download=True, transform=transform)
     val_dataset = dsets.FashionMNIST(root="data", download=True, train=False, transform=transform)
 
 elif dataset is 'CIFAR-100':
+    outputs = 100
+    inputs = 3
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
     train_dataset = dsets.CIFAR100(root="data", download=True, transform=transform)
     val_dataset = dsets.CIFAR100(root="data", download=True, train=False, transform=transform)
 
 elif dataset is 'CIFAR-10':
+    outputs = 10
+    inputs = 3
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
     train_dataset = dsets.CIFAR10(root="data", download=True, transform=transform)
     val_dataset = dsets.CIFAR10(root="data", download=True, train=False, transform=transform)
 
 elif dataset is 'Monkeys':
+    outputs = 10
+    inputs = 3
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
     train_dataset = dsets.ImageFolder(root="data/10-monkey-species/training", transform=transform)
     val_dataset = dsets.ImageFolder(root="data/10-monkey-species/validation", transform=transform)
 
 elif dataset is 'LSUN':
+    outputs = 10
+    inputs = 3
     transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
     train_dataset = dsets.LSUN(root="data/lsun", classes="train", transform=transform)
     val_dataset = dsets.LSUN(root="data/lsun", classes="val", transform=transform)
+elif dataset is 'STL10':
+    outputs = 10
+    inputs = 3
+    transform = transforms.Compose([transforms.Resize((resize, resize)), transforms.ToTensor(),
+                                    transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    train_dataset = dsets.STL10(root="data/", transform=transform,download=True)
+    val_dataset = dsets.STL10(root="data/", transform=transform,download=True)
 
 '''
 MAKING DATASET ITERABLE
@@ -102,7 +109,8 @@ loader_val = data.DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle
 INSTANTIATE MODEL
 '''
 
-model = net(outputs=outputs, inputs=inputs)
+model = net(num_classes=outputs, inputs=inputs)
+model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
 
 if cuda:
     model.cuda()
@@ -142,7 +150,7 @@ def run_epoch(loader):
         accuracy = (predicted.data.cpu() == y.cpu()).float().mean()
 
         accuracies.append(accuracy)
-        losses.append(loss.data.mean())
+        losses.append(loss.item())
 
     diagnostics = {'loss': sum(losses) / len(losses),
                    'acc': sum(accuracies) / len(accuracies)}

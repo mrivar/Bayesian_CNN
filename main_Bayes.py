@@ -207,6 +207,7 @@ def test(epoch):
     test_loss = 0
     correct = 0
     total = 0
+    conf=[]
     m = math.ceil(len(testset) / batch_size)
     for batch_idx, (inputs_value, targets) in enumerate(testloader):
         x = inputs_value.view(-1, inputs, resize, resize).repeat(args.num_samples, 1, 1, 1)
@@ -230,10 +231,20 @@ def test(epoch):
 
         test_loss += loss.data[0]
         _, predicted = torch.max(outputs.data, 1)
+        preds = F.softmax(outputs, dim=1)
+        results = torch.topk(preds.cpu().data, k=1, dim=1)
+        conf.append(results[0][0].item())
         total += targets.size(0)
         correct += predicted.eq(y.data).cpu().sum()
 
     # Save checkpoint when best model
+    p_hat=np.array(conf)
+    confidence_mean=np.mean(p_hat, axis=0)
+    confidence_var=np.var(p_hat, axis=0)
+    epistemic = np.mean(p_hat ** 2, axis=0) - np.mean(p_hat, axis=0) ** 2
+    aleatoric = np.mean(p_hat * (1 - p_hat), axis=0)
+
+
     acc =(100*correct/total)/args.num_samples
     print("\n| Validation Epoch #%d\t\t\tLoss: %.4f Acc@1: %.2f%%" %(epoch, loss.data[0], acc))
     test_diagnostics_to_write = {'Validation Epoch':epoch, 'Loss':loss.data[0], 'Accuracy': acc}

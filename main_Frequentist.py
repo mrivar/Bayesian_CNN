@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
-import config as cf
+import Frequentist_config as cf
 
 import torchvision
 import torchvision.transforms as transforms
@@ -18,13 +18,10 @@ import datetime
 
 from torch.autograd import Variable
 
-from utils.NonBayesianModels import conv_init
-from utils.NonBayesianModels.resnet import ResNet
-from utils.NonBayesianModels.AlexNet import AlexNet
-from utils.NonBayesianModels.LeNet import LeNet
-from utils.NonBayesianModels.SqueezeNet import SqueezeNet
-from utils.NonBayesianModels.wide_resnet import Wide_ResNet
-from utils.NonBayesianModels.ThreeConvThreeFC import ThreeConvThreeFC
+from utils.FrequentistModels import conv_init
+from utils.FrequentistModels.AlexNet import AlexNet
+from utils.FrequentistModels.LeNet import LeNet
+from utils.FrequentistModels.F3Conv3FC import F3Conv3FC
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR-10 Training')
 parser.add_argument('--lr', default=0.001, type=float, help='learning_rate')
@@ -81,24 +78,11 @@ elif(args.dataset == 'mnist'):
     testset = torchvision.datasets.MNIST(root='./data', train=False, download=False, transform=transform_test)
     num_classes = 10
     inputs = 1
-    
-elif(args.dataset == 'fashionmnist'):
-    print("| Preparing CIFAR-100 dataset...")
-    sys.stdout.write("| ")
-    trainset = torchvision.datasets.FashionMNIST(root='./data', train=True, download=True, transform=transform_train)
-    testset = torchvision.datasets.FashionMNIST(root='./data', train=False, download=False, transform=transform_test)
-    num_classes = 10
-    inputs = 1
-elif (args.dataset == 'stl10'):
-    print("| Preparing STL10 dataset...")
-    sys.stdout.write("| ")
-    trainset = torchvision.datasets.STL10(root='./data',  split='train', download=True, transform=transform_train)
-    testset = torchvision.datasets.STL10(root='./data',  split='test', download=False, transform=transform_test)
-    num_classes = 10
-    inputs = 3
+
 
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=4)
+
 
 # Return network & file name
 def getNetwork(args):
@@ -109,17 +93,8 @@ def getNetwork(args):
         net = AlexNet(num_classes,inputs)
         file_name = 'alexnet-'
     elif (args.net_type == '3conv3fc'):
-        net = AlexNet(num_classes, inputs)
+        net = F3Conv3FC(num_classes, inputs)
         file_name = 'ThreeConvThreeFC-'
-    elif (args.net_type == 'squeezenet'):
-        net = SqueezeNet(num_classes,inputs)
-        file_name = 'squeezenet-'
-    elif (args.net_type == 'resnet'):
-        net = ResNet(args.depth, num_classes,inputs)
-        file_name = 'resnet-' + str(args.depth)
-    elif (args.net_type == 'wide-resnet'):
-        net = Wide_ResNet(args.depth, args.widen_factor, args.dropout, num_classes,inputs)
-        file_name = 'wide-resnet-'+str(args.depth)+'x'+str(args.widen_factor)
     else:
         print('Error : Network should be either [LeNet / AlexNet /SqueezeNet/ ResNet / Wide_ResNet')
         sys.exit(0)

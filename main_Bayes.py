@@ -7,6 +7,7 @@ import argparse
 import datetime
 import math
 import pickle
+import numpy as np
 
 
 import torchvision
@@ -20,13 +21,13 @@ import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
 
-import bayesian_config as cf
+import Bayesian_config as cf
 
 from utils.BBBlayers import GaussianVariationalInference
+
 from utils.BayesianModels.Bayesian3Conv3FC import BBB3Conv3FC
 from utils.BayesianModels.BayesianAlexNet import BBBAlexNet
 from utils.BayesianModels.BayesianLeNet import BBBLeNet
-from utils.BayesianModels.BayesianSqueezeNet import BBBSqueezeNet
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR-10 Training')
@@ -91,20 +92,6 @@ elif (args.dataset == 'mnist'):
     outputs = 10
     inputs = 1
 
-elif (args.dataset == 'fashionmnist'):
-    print("| Preparing FASHIONMNIST dataset...")
-    sys.stdout.write("| ")
-    trainset = torchvision.datasets.FashionMNIST(root='./data', train=True, download=True, transform=transform_train)
-    testset = torchvision.datasets.FashionMNIST(root='./data', train=False, download=False, transform=transform_test)
-    outputs = 10
-    inputs = 1
-elif (args.dataset == 'stl10'):
-    print("| Preparing STL10 dataset...")
-    sys.stdout.write("| ")
-    trainset = torchvision.datasets.STL10(root='./data',  split='train', download=True, transform=transform_train)
-    testset = torchvision.datasets.STL10(root='./data',  split='test', download=False, transform=transform_test)
-    outputs = 10
-    inputs = 3
 
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=4)
@@ -118,9 +105,6 @@ def getNetwork(args):
     elif (args.net_type == 'alexnet'):
         net = BBBAlexNet(outputs,inputs)
         file_name = 'alexnet-'
-    elif (args.net_type == 'squeezenet'):
-        net = BBBSqueezeNet(outputs,inputs)
-        file_name = 'squeezenet-'
     elif (args.net_type == '3conv3fc'):
         net = BBB3Conv3FC(outputs,inputs)
         file_name = '3Conv3FC-'
@@ -184,7 +168,7 @@ def train(epoch):
         loss = vi(outputs, y, kl, beta)  # Loss
         optimizer.zero_grad()
         loss.backward()  # Backward Propagation
-        optimizer.step() # Optimizer update
+        optimizer.step()  # Optimizer update
 
         train_loss += loss.data[0]
         _, predicted = torch.max(outputs.data, 1)
@@ -192,14 +176,14 @@ def train(epoch):
         correct += predicted.eq(y.data).cpu().sum()
 
         sys.stdout.write('\r')
-        sys.stdout.write('| Epoch [%3d/%3d] Iter[%3d/%3d]\t\tLoss: %.4f Acc@1: %.3f%%'
-                %(epoch, num_epochs, batch_idx+1,
+        sys.stdout.write('| Epoch [%3d/%3d] Iter[%3d/%3d]\t\tLoss: %.4f Acc@1: %.3f%%' %(epoch, num_epochs, batch_idx+1,
                     (len(trainset)//batch_size)+1, loss.data[0], (100*correct/total)/args.num_samples))
         sys.stdout.flush()
 
-    diagnostics_to_write =  {'Epoch': epoch, 'Loss': loss.data[0], 'Accuracy': (100*correct/total)/args.num_samples}
+    diagnostics_to_write = {'Epoch': epoch, 'Loss': loss.data[0], 'Accuracy': (100*correct/total)/args.num_samples}
     with open(logfile, 'a') as lf:
         lf.write(str(diagnostics_to_write))
+
 
 def test(epoch):
     global best_acc
@@ -227,7 +211,7 @@ def test(epoch):
         else:
             beta = 0
 
-        loss = vi(outputs,y,kl,beta)
+        loss = vi(outputs, y, kl, beta)
 
         test_loss += loss.data[0]
         _, predicted = torch.max(outputs.data, 1)
@@ -238,16 +222,15 @@ def test(epoch):
         correct += predicted.eq(y.data).cpu().sum()
 
     # Save checkpoint when best model
-    p_hat=np.array(conf)
-    confidence_mean=np.mean(p_hat, axis=0)
-    confidence_var=np.var(p_hat, axis=0)
+    p_hat = np.array(conf)
+    confidence_mean = np.mean(p_hat, axis=0)
+    confidence_var = np.var(p_hat, axis=0)
     epistemic = np.mean(p_hat ** 2, axis=0) - np.mean(p_hat, axis=0) ** 2
     aleatoric = np.mean(p_hat * (1 - p_hat), axis=0)
 
-
     acc =(100*correct/total)/args.num_samples
-    print("\n| Validation Epoch #%d\t\t\tLoss: %.4f Acc@1: %.2f%%" %(epoch, loss.data[0], acc))
-    test_diagnostics_to_write = {'Validation Epoch':epoch, 'Loss':loss.data[0], 'Accuracy': acc}
+    print('\n| Validation Epoch #%d\t\t\tLoss: %.4f Acc@1: %.2f%%' %(epoch, loss.data[0], acc))
+    test_diagnostics_to_write = {'Validation Epoch': epoch, 'Loss': loss.data[0], 'Accuracy': acc}
     with open(logfile, 'a') as lf:
         lf.write(str(test_diagnostics_to_write))
 
@@ -266,6 +249,7 @@ def test(epoch):
         torch.save(state, save_point+file_name+'.t7')
         best_acc = acc
 
+
 print('\n[Phase 3] : Training model')
 print('| Training Epochs = ' + str(num_epochs))
 print('| Initial Learning Rate = ' + str(args.lr))
@@ -280,7 +264,7 @@ for epoch in range(start_epoch, start_epoch+num_epochs):
 
     epoch_time = time.time() - start_time
     elapsed_time += epoch_time
-    print('| Elapsed time : %d:%02d:%02d'  %(cf.get_hms(elapsed_time)))
+    print('| Elapsed time : %d:%02d:%02d' %(cf.get_hms(elapsed_time)))
 
 print('\n[Phase 4] : Testing model')
 print('* Test results : Acc@1 = %.2f%%' %(best_acc))

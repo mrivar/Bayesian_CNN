@@ -30,7 +30,7 @@ from utils.BayesianModels.BayesianAlexNet import BBBAlexNet
 from utils.BayesianModels.BayesianLeNet import BBBLeNet
 
 
-parser = argparse.ArgumentParser(description='PyTorch CIFAR-10 Training')
+parser = argparse.ArgumentParser(description='PyTorch Training')
 parser.add_argument('--lr', default=0.0001, type=float, help='learning_rate')
 parser.add_argument('--net_type', default='3conv3fc', type=str, help='model')
 #parser.add_argument('--depth', default=28, type=int, help='depth of model')
@@ -40,16 +40,17 @@ parser.add_argument('--beta_type', default="Blundell", type=str, help='Beta type
 parser.add_argument('--p_logvar_init', default=0, type=int, help='p_logvar_init')
 parser.add_argument('--q_logvar_init', default=-10, type=int, help='q_logvar_init')
 parser.add_argument('--weight_decay', default=0.0005, type=float, help='weight_decay')
-parser.add_argument('--dataset', default='stl10', type=str, help='dataset = [mnist/cifar10/cifar100/fashionmnist/stl10]')
+parser.add_argument('--dataset', default='mnist', type=str, help='dataset = [mnist/cifar10/cifar100]')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 parser.add_argument('--testOnly', '-t', action='store_true', help='Test mode with the saved model')
 args = parser.parse_args()
 
 # Hyper Parameter settings
 use_cuda = torch.cuda.is_available()
-torch.cuda.set_device(0)
+if use_cuda is True:
+    torch.cuda.set_device(0)
 best_acc = 0
-resize=32
+resize = 32
 start_epoch, num_epochs, batch_size, optim_type = cf.start_epoch, cf.num_epochs, cf.batch_size, cf.optim_type
 
 # Data Uplaod
